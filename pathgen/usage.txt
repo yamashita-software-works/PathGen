@@ -1,0 +1,46 @@
+
+Usage:
+
+pathgen [printtypeswitch][options] file1 file2 ...
+
+Print type switch:
+------------------
+These switches are exclusive.
+
+/drive
+/dos
+/dosdrive     Displays by MS-DOS drive path.
+              d:\<Path>
+/nt
+/ntdevice     Displays by NT device name.
+              \Device\HarddiskVolumeN\<Path>
+
+/ntdrive      Displays by NT dos drive.
+              \??\d:\<Path>
+
+/ntguid       Displays by NT dos device guid.
+              \??\Volume{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}\<Path>
+
+/ntdosdevice  Displays by NT dos device name.
+              \??\HarddiskVolume1\<Path>
+
+/win32drive   Displays by Win32 drive path.
+              \\?\d:\<Path>
+
+/win32guid
+/guid         Displays by Win32 guid path.
+              \\?\Volume{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}\<Path>
+
+/root         Displays root relative path (without volume name).
+
+/dump         Print a specified file path with available all prefix.
+
+Options:
+--------
+/s            Use short path name.
+
+/x            Replace path separator character backslash to slash.
+
+/r            Make paths every occurrence of the specified file name 
+              within the specified directory and all subdirectories.
+
