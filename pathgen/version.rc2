@@ -1,0 +1,37 @@
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+#include "build.h"
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION VERSION_STR_DWORD
+ PRODUCTVERSION PRODUCT_VER_DWORD
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x0L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "000004b0"
+        BEGIN
+            VALUE "FileDescription", "PathGen"
+            VALUE "FileVersion", VERSION_STRING
+            VALUE "LegalCopyright", COMMON_LEGALCOPYRIGHT
+            VALUE "OriginalFilename", "pathgen.exe\0"
+			VALUE "CompanyName", COMMON_COMPANYNAME
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0, 1200
+    END
+END

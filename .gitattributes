@@ -1,0 +1,12 @@
+*.rc    -text
+*.rc2   -text
+*.c     text eol=crlf 
+*.cpp   text eol=crlf
+*.h     text eol=crlf
+*.txt   text eol=crlf
+*.bat   text eol=crlf
+*.inc   text eol=crlf
+*.mak   text eol=crlf
+dirs    text eol=crlf
+sources text eol=crlf
+makefile text eol=crlf
