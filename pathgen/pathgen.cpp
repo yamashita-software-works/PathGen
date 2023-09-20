@@ -197,6 +197,44 @@ void _MakeShortPathName(CCommandRunTimeStruct *pcs,UNICODE_STRING *pusRelativePa
 
 //----------------------------------------------------------------------------
 //
+//  _MakeLongPathName()
+//
+//----------------------------------------------------------------------------
+void _MakeLongPathName(CCommandRunTimeStruct *pcs,UNICODE_STRING *pusRelativePath,UNICODE_STRING *pusPath)
+{
+	PWSTR pszNtFullPath;
+
+	int cch = (int)(wcslen(pcs->VolTypeString.NtDevicePath) + WCHAR_LENGTH(pusRelativePath->Length) + 1);
+	pszNtFullPath = AllocStringBuffer( cch );
+
+	if( pszNtFullPath )
+	{
+		RtlStringCchCopyW(pszNtFullPath,cch,pcs->VolTypeString.NtDevicePath);
+		RtlStringCchCatW(pszNtFullPath,cch,pusRelativePath->Buffer);
+
+		ULONG cchLongPathName = _NT_PATH_FULL_LENGTH;
+		PWSTR pszLongPathName = AllocStringBuffer( cchLongPathName );
+
+		if( pszLongPathName )
+		{
+			if( GetLongPath_W( pszNtFullPath, pszLongPathName , cchLongPathName ) == STATUS_SUCCESS )
+			{
+				UNICODE_STRING us;
+				SplitVolumeRelativePath(pszLongPathName,NULL,&us);
+				DuplicateUnicodeString(pusPath,&us);
+			}
+			else
+			{
+				DuplicateUnicodeString(pusPath,pusRelativePath);
+			}
+			FreeMemory(pszLongPathName);
+		}
+		FreeMemory(pszNtFullPath);
+	}
+}
+
+//----------------------------------------------------------------------------
+//
 //  _PrintPathString()
 //
 //----------------------------------------------------------------------------
@@ -333,38 +371,35 @@ BOOLEAN _PrintPathString(CCommandRunTimeStruct *pcs,UNICODE_STRING *pusPath)
 		//
 		// Print Path
 		//
-		UNICODE_STRING usPrintRelativePath;
+		UNICODE_STRING usPrintRelativePath = {0};
 
 		if( pcs->ShortPathName )
 		{
 			_MakeShortPathName(pcs,&usVolumeRelativePath,&usPrintRelativePath);
-
-			if( pcs->ReplaceSlash )
-				_ReplaceBackslashToSlash(usPrintRelativePath);
+		}
+		else if( pcs->LongPathName )
+		{
+			_MakeLongPathName(pcs,&usVolumeRelativePath,&usPrintRelativePath);
 		}
 		else
 		{
-			if( pcs->ReplaceSlash )
-			{
-				DuplicateUnicodeString(&usPrintRelativePath,&usVolumeRelativePath);
-
-				_ReplaceBackslashToSlash(usPrintRelativePath);
-			}
-			else
-			{
-				usPrintRelativePath = usVolumeRelativePath;
-			}
+			DuplicateUnicodeString(&usPrintRelativePath,&usVolumeRelativePath);
 		}
 
-		if( pcs->OutputVolumeString )
-			wprintf(L"%s%wZ\n",pcs->OutputVolumeString,&usPrintRelativePath);
-		else
-			wprintf(L"%wZ\n",&usPrintRelativePath);
+		if( usPrintRelativePath.Buffer != NULL )
+		{
+			if( pcs->ReplaceSlash )
+				_ReplaceBackslashToSlash(usPrintRelativePath);
 
-		if( pcs->ReplaceSlash || pcs->ShortPathName )
+			if( pcs->OutputVolumeString )
+				wprintf(L"%s%wZ\n",pcs->OutputVolumeString,&usPrintRelativePath);
+			else
+				wprintf(L"%wZ\n",&usPrintRelativePath);
+
 			FreeUnicodeString( &usPrintRelativePath );
 
-		Success = TRUE;
+			Success = TRUE;
+		}
 	}
 	__finally
 	{
@@ -947,8 +982,15 @@ BOOLEAN ParseArguments(int argc, WCHAR *argv[],CCommandRunTimeStruct *pcs)
 				{
 					case L's':
 					case L'S':
-						if( args[1] == L'\0' )
+						if( args[1] == L'\0' && !pcs->LongPathName )
 							pcs->ShortPathName = TRUE;
+						else
+							return FALSE; // invalid switch
+						break;
+					case L'l':
+					case L'L':
+						if( args[1] == L'\0' && !pcs->ShortPathName )
+							pcs->LongPathName = TRUE;
 						else
 							return FALSE; // invalid switch
 						break;

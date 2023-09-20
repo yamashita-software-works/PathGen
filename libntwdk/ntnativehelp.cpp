@@ -67,7 +67,7 @@ EXTERN_C PVOID NTAPI AllocMemory(SIZE_T cb)
 
 EXTERN_C PVOID NTAPI ReAllocateHeap(PVOID pv,SIZE_T cb)
 {
-    return RtlReAllocateHeap(_GetProcessHeap(),0,pv,cb);
+    return RtlReAllocateHeap(_GetProcessHeap(),HEAP_ZERO_MEMORY,pv,cb);
 }
 
 EXTERN_C VOID NTAPI FreeMemory(PVOID ptr)
@@ -145,7 +145,21 @@ EXTERN_C PWCH _AllocUnicodeStringMemory(ULONG cb)
 	return (PWCH)RtlAllocateHeap(_GetProcessHeap(),HEAP_ZERO_MEMORY,cb);
 }
 
-#if 0 // todo: pending:
+EXTERN_C NTSTATUS NTAPI AllocateUnicodeStringCb(UNICODE_STRING *pus,PCWSTR String,ULONG cb,BOOLEAN NullTerminate)
+{
+	//
+	// Use native heap allocator, because UNICODE_STRING's buffer frees memory by RtlFreeUnicodeString.
+	//
+	NTSTATUS Status;
+	Status = AllocateUnicodeStringCbBuffer(pus,cb + (NullTerminate ? sizeof(WCHAR) : 0));
+	if( Status == STATUS_SUCCESS )
+	{
+		memcpy(pus->Buffer,String,cb);
+		pus->Length = (USHORT)cb;
+	}
+    return Status;
+}
+
 EXTERN_C NTSTATUS NTAPI AllocateUnicodeStringCbBuffer(UNICODE_STRING *pus,ULONG cb)
 {
 	//
@@ -166,7 +180,6 @@ EXTERN_C NTSTATUS NTAPI AllocateUnicodeStringCchBuffer(UNICODE_STRING *pus,ULONG
 {
     return AllocateUnicodeStringCbBuffer(pus,WCHAR_BYTES(cch));
 }
-#endif
 
 //
 // String wildcard helper funcsions
@@ -508,6 +521,13 @@ BOOLEAN IsRootDirectory_U(UNICODE_STRING *pusFullyPath)
     }
 
     return FALSE;
+}
+
+BOOLEAN IsRootDirectory_W(__in PCWSTR pszFullyQualifiedPath)
+{
+	UNICODE_STRING usPath;
+	RtlInitUnicodeString(&usPath,pszFullyQualifiedPath);
+	return IsRootDirectory_U(&usPath);
 }
 
 NTSTATUS FindRootDirectory_U(UNICODE_STRING *pusFullyQualifiedPath,PWSTR *pRootDirectory)
@@ -1103,6 +1123,21 @@ StringFromGUID(
     Status = RtlNtStatusToDosError(Status);
 
     return Status;
+}
+
+EXTERN_C
+NTSTATUS
+NTAPI
+GUIDFromString(
+    __in LPCWSTR lpszGuid,
+    __out GUID* Guid
+    )
+{
+    UNICODE_STRING GuidString;
+
+	RtlInitUnicodeString(&GuidString,lpszGuid);
+
+	return RtlGUIDFromString(&GuidString,Guid);
 }
 
 //////////////////////////////////////////////////////////////////////////////

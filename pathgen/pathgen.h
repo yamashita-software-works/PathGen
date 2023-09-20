@@ -70,6 +70,7 @@ typedef struct _COMMAND_RUNTIME_STRUCT
 			ULONG64 Recursive : 1; 
 			ULONG64 ReplaceSlash : 1;
 			ULONG64 ShortPathName : 1; 
+			ULONG64 LongPathName : 1; 
 		};
 		ULONG64 Flags;
 	};

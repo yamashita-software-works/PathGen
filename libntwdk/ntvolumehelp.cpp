@@ -182,15 +182,17 @@ typedef struct _FILE_FS_FULL_SIZE_INFORMATION_EX {
 #define FileFsMetadataSizeInformation 13
 #define FileFsFullSizeInformationEx   ((FS_INFORMATION_CLASS)14)
 
-PVOID AllocInformaion(HANDLE hVolume,FS_INFORMATION_CLASS InfoClass)
+PVOID AllocAndGetInformaion(HANDLE hVolume,FS_INFORMATION_CLASS InfoClass,NTSTATUS& Status)
 {
-    NTSTATUS Status;
     ULONG cbBuffer = 1024;
     PVOID pBuffer;
 
     pBuffer = AllocMemory(cbBuffer);
     if( pBuffer == NULL )
+	{
+		Status = STATUS_NO_MEMORY;
         return NULL;
+	}
 
     IO_STATUS_BLOCK IoStatusBlock = {0};
     do
@@ -204,7 +206,10 @@ PVOID AllocInformaion(HANDLE hVolume,FS_INFORMATION_CLASS InfoClass)
 
             pBuffer = AllocMemory(cbBuffer);
             if( pBuffer == NULL )
+			{
+				Status = STATUS_NO_MEMORY;
                 return NULL;
+			}
 
             continue;
         }
@@ -232,31 +237,32 @@ GetVolumeFsInformation(
     OUT PVOID *Buffer
     )
 {
+	NTSTATUS Status;
     switch( InfoClass )
     {
         case FILEFS_VOLUME_INFORMATION:
         {
-            *Buffer = AllocInformaion( Handle, FileFsVolumeInformation );
+            *Buffer = AllocAndGetInformaion( Handle, FileFsVolumeInformation, Status );
             break;
         }
         case FILEFS_SIZE_INFORMATION:
         {
-            *Buffer = AllocInformaion( Handle, FileFsSizeInformation );
+            *Buffer = AllocAndGetInformaion( Handle, FileFsSizeInformation, Status );
             break;
         }
         case FILEFS_ATTRIBUTE_INFORMATION:
         {
-            *Buffer = AllocInformaion( Handle, FileFsAttributeInformation );
+            *Buffer = AllocAndGetInformaion( Handle, FileFsAttributeInformation, Status );
             break;
         }
         case FILEFS_SECTORSIZE_INFORMATION:
         {
-            *Buffer = AllocInformaion( Handle, FileFsSectorSizeInformation );
+            *Buffer = AllocAndGetInformaion( Handle, FileFsSectorSizeInformation, Status );
             break;
         }
         default:
             return STATUS_INVALID_PARAMETER;
     }
 
-    return 0;
+    return Status;
 }

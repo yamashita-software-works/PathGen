@@ -39,8 +39,9 @@ PWSTR NTAPI AllocStringLengthCb(PCWSTR psz,SIZE_T cb);
 
 NTSTATUS NTAPI AllocateUnicodeString(__out UNICODE_STRING *pus,__in PCWSTR psz);
 NTSTATUS NTAPI DuplicateUnicodeString(__out UNICODE_STRING *pusDup,__in UNICODE_STRING *pusSrc);
-//NTSTATUS NTAPI AllocateUnicodeStringCbBuffer(UNICODE_STRING *pus,ULONG cb);
-//NTSTATUS NTAPI AllocateUnicodeStringCchBuffer(UNICODE_STRING *pus,ULONG cch);
+NTSTATUS NTAPI AllocateUnicodeStringCbBuffer(UNICODE_STRING *pus,ULONG cb);
+NTSTATUS NTAPI AllocateUnicodeStringCchBuffer(UNICODE_STRING *pus,ULONG cch);
+NTSTATUS NTAPI AllocateUnicodeStringCb(UNICODE_STRING *pus,PCWSTR String,ULONG cb,BOOLEAN NullTerminate);
 NTSTATUS CombineUnicodeStringPath(UNICODE_STRING *CombinedPath,UNICODE_STRING *Path,UNICODE_STRING *FileName);
 NTSTATUS NTAPI FreeUnicodeString(UNICODE_STRING *pus);
 
@@ -63,6 +64,7 @@ BOOLEAN IsRelativePath(PCWSTR pszPath);
 BOOLEAN IsDirectory(PCWSTR pszPath);
 BOOLEAN IsDirectory_U(UNICODE_STRING *pusPath);
 BOOLEAN IsRootDirectory_U(UNICODE_STRING *pusFullyPath);
+BOOLEAN IsRootDirectory_W(__in PCWSTR pszFullyQualifiedPath);
 BOOLEAN IsLastCharacterBackslash(PCWSTR pszPath);
 BOOLEAN IsLastCharacterBackslash_U(UNICODE_STRING *pusPath);
 BOOLEAN HasPrefix(PCWSTR pszPrefix,PCWSTR pszPath);
@@ -252,6 +254,14 @@ StringFromGUID(
     __in  int cchMax
     );
 
+EXTERN_C
+NTSTATUS
+NTAPI
+GUIDFromString(
+    __in LPCWSTR lpszGuid,
+    __out GUID* Guid
+    );
+
 #define LPWSTR_GLOBALROOTPREFIX      L"\\??\\GlobalRoot"
 #define LPWSTR_GLOBALROOTPREFIX_W32  L"\\\\?\\GlobalRoot"
 #define LPWSTR_DOSNAMESPACEPREFIX    L"\\??\\"
@@ -322,9 +332,10 @@ EXTERN_C
 NTSTATUS
 NTAPI
 GetDirectoryFileInformation_U(
-	HANDLE hDirectory,
-	UNICODE_STRING *pusFileName,
-	FS_FILE_DIRECTORY_INFORMATION *pInfoBuffer
+	__in HANDLE hDirectory,
+	__in UNICODE_STRING *pusFileName,
+	__out FS_FILE_DIRECTORY_INFORMATION *pInfoBuffer,
+	__out_opt UNICODE_STRING *pusFileNameInfo
 	);
 
 EXTERN_C
@@ -372,6 +383,15 @@ GetShortPath_W(
 	__in PCWSTR pszFullPath,
 	__out PWSTR pszShortPathBuffer,
 	__in ULONG cchShortPathBuffer
+	);
+
+EXTERN_C
+NTSTATUS
+NTAPI
+GetLongPath_W(
+	__in PCWSTR pszFullPath,
+	__out PWSTR pszLongPathBuffer,
+	__in ULONG cchLongPathBuffer
 	);
 
 #ifdef __cplusplus

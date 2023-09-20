@@ -520,7 +520,8 @@ NTAPI
 GetDirectoryFileInformation_U(
 	HANDLE hDirectory,
 	UNICODE_STRING *pusFileName,
-	FS_FILE_DIRECTORY_INFORMATION *pInfoBuffer
+	FS_FILE_DIRECTORY_INFORMATION *pInfoBuffer,
+	UNICODE_STRING *pusFileNameInfo
 	)
 {
 	FILE_ID_BOTH_DIR_INFORMATION *pBuffer;
@@ -530,6 +531,8 @@ GetDirectoryFileInformation_U(
 
 	cbBuffer = sizeof(FILE_ID_BOTH_DIR_INFORMATION) + DOS_MAX_COMPONENT_BYTES;
 	pBuffer = (FILE_ID_BOTH_DIR_INFORMATION *)AllocMemory(cbBuffer);
+	if( pBuffer == NULL )
+		return STATUS_NO_MEMORY;
 
 	Status = NtQueryDirectoryFile(hDirectory,NULL,NULL,NULL,&IoStatus,
 					pBuffer,cbBuffer,
@@ -557,7 +560,14 @@ GetDirectoryFileInformation_U(
 		pInfoBuffer->FileId          = pBuffer->FileId;
 		memcpy(pInfoBuffer->ShortName,pBuffer->ShortName,pBuffer->ShortNameLength);
 		pInfoBuffer->ShortName[WCHAR_LENGTH(pBuffer->ShortNameLength)] = UNICODE_NULL;
+
+		if( pusFileNameInfo )
+		{
+			Status = AllocateUnicodeStringCb(pusFileNameInfo,pBuffer->FileName,pBuffer->FileNameLength,TRUE);
+		}
 	}
+
+	FreeMemory(pBuffer);
 
 	return Status;
 }
@@ -580,7 +590,7 @@ GetDirectoryFileInformation(
 
 	RtlInitUnicodeString(&usFileName,pszFileName);
 
-	return GetDirectoryFileInformation_U(hDirectory,&usFileName,pInfoBuffer);
+	return GetDirectoryFileInformation_U(hDirectory,&usFileName,pInfoBuffer,NULL);
 }
 
 //----------------------------------------------------------------------------
@@ -852,7 +862,7 @@ MoveDirectoryEntry(
 //
 //  - This parameter necessary to be NT object namespace path.
 //
-//  - Uses this function instead of GetShortPathName() function.
+//  - Uses this function instead of GetShortPathName() Win32 function.
 //
 EXTERN_C
 NTSTATUS
@@ -917,7 +927,7 @@ GetShortPath_W(
 		{
 			FS_FILE_DIRECTORY_INFORMATION di = {0};
 
-			Status = GetDirectoryFileInformation_U(hDir,&usFileName,&di);
+			Status = GetDirectoryFileInformation_U(hDir,&usFileName,&di,NULL);
 
 			NtClose(hDir);
 
@@ -930,6 +940,113 @@ GetShortPath_W(
 
 				if( sep != part )
 					Status = RtlStringCchCatW(pszShortPathBuffer,cchShortPathBuffer,L"\\");
+
+				if( Status != STATUS_SUCCESS )
+					break;
+			}
+		}
+		else
+		{
+			break;
+		}
+
+		if( sep == part )
+			break; // last part, loop out.
+
+		*sep = L'\\';
+
+		part = sep + 1; // to the next part.
+	}
+
+	FreeMemory(path);
+
+	return Status;
+}
+
+//----------------------------------------------------------------------------
+//
+//  GetLongPath_W()
+//
+//----------------------------------------------------------------------------
+//
+//  - This parameter necessary to be NT object namespace path.
+//
+//  - Uses this function instead of GetLongPathName() Win32 function.
+//
+EXTERN_C
+NTSTATUS
+NTAPI
+GetLongPath_W(
+	PCWSTR pszFullPath,
+	PWSTR pszLongPathBuffer,
+	ULONG cchLongPathBuffer
+	)
+{
+	UNICODE_STRING usRoot;
+	UNICODE_STRING usRootRelativePath;
+	PWSTR path,sep,part;
+	NTSTATUS Status;
+
+	SplitRootRelativePath(pszFullPath,&usRoot,&usRootRelativePath);
+
+	if( usRootRelativePath.Length == 0 )
+		return STATUS_INVALID_PARAMETER; // no path part
+
+	//
+	// Copy short name root prefix
+	//
+	if( cchLongPathBuffer < WCHAR_LENGTH(usRoot.Length) )
+		return STATUS_BUFFER_TOO_SMALL;
+
+	memcpy(pszLongPathBuffer,usRoot.Buffer,usRoot.Length);
+	
+	//
+	// Open root directory
+	//
+	HANDLE hRoot;
+	OpenFile_U(&hRoot,NULL,&usRoot,
+			FILE_LIST_DIRECTORY|SYNCHRONIZE,
+			FILE_SHARE_READ|FILE_SHARE_WRITE,
+			FILE_DIRECTORY_FILE|FILE_SYNCHRONOUS_IO_NONALERT);
+
+	path = part = AllocateSzFromUnicodeString( &usRootRelativePath );
+
+	for(;;)
+	{
+		// Find separator. if found, replace to null character to terminate a path.
+		sep = wcschr(part,L'\\');
+		if( sep )
+			*sep = L'\0';
+		else
+			sep = part;
+
+		UNICODE_STRING usPath;
+		UNICODE_STRING usFileName;
+	
+		RtlInitUnicodeString(&usPath,path);
+		SplitPathFileName_U(&usPath,&usFileName);
+
+		HANDLE hDir;
+		Status = OpenFile_U(&hDir,hRoot,&usPath,
+						FILE_LIST_DIRECTORY|SYNCHRONIZE,
+						FILE_SHARE_READ|FILE_SHARE_WRITE,
+						FILE_DIRECTORY_FILE|FILE_SYNCHRONOUS_IO_NONALERT);
+
+		if( Status == STATUS_SUCCESS )
+		{
+			FS_FILE_DIRECTORY_INFORMATION di = {0};
+			UNICODE_STRING usOrgFileName = {0};
+
+			Status = GetDirectoryFileInformation_U(hDir,&usFileName,&di,&usOrgFileName);
+
+			NtClose(hDir);
+
+			if( Status == STATUS_SUCCESS )
+			{
+				Status = RtlStringCchCatW(pszLongPathBuffer,cchLongPathBuffer,usOrgFileName.Buffer);
+
+				if( sep != part )
+					Status = RtlStringCchCatW(pszLongPathBuffer,cchLongPathBuffer,L"\\");
 
 				if( Status != STATUS_SUCCESS )
 					break;

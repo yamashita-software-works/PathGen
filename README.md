@@ -48,6 +48,8 @@ Options:
 ```
 /s            Use short path name.
 
+/l            Use long path name.
+
 /x            Replace path separator character backslash to slash.
 
 /r            Make paths every occurrence of the specified file name 
